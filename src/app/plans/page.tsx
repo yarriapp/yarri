@@ -370,12 +370,22 @@ export default function AdminPlansPage() {
   const createBundlePlan = async () => {
     const cleanName = bundleName.trim();
     const parsedPrice = Number(bundlePrice);
+    const parsedDuration = Math.floor(Number(bundleDurationValue));
     const enabledFeatures = BUNDLE_FEATURES.filter(
       (feature) => bundleLimits[feature.id].enabled
     );
 
     if (!cleanName || !Number.isFinite(parsedPrice) || parsedPrice < 0) {
       setError("Add a plan name and valid price.");
+      return;
+    }
+
+    if (
+      bundleDurationUnit === "custom" ||
+      !Number.isFinite(parsedDuration) ||
+      parsedDuration < 1
+    ) {
+      setError("Subscriptions need a billing period of at least 1 day, week, or month.");
       return;
     }
 
@@ -422,6 +432,8 @@ export default function AdminPlansPage() {
           product_kind: "subscription_bundle",
           mode: bundleMode,
           duration_unit: bundleDurationUnit,
+          billing_interval: bundleDurationUnit,
+          billing_interval_count: parsedDuration,
           included_features: enabledFeatures.map(
             (feature) => FEATURE_ID_BY_BUNDLE_KEY[feature.id]
           ),
@@ -756,7 +768,7 @@ export default function AdminPlansPage() {
 
           <AdminCollapsible
             title="Create Subscription Bundle"
-            subtitle="Monthly/custom plan with any mix of features and limits."
+            subtitle="Auto-renewing plan with any mix of features and limits."
             defaultOpen
           >
             <div className="admin-form-grid">
@@ -806,7 +818,7 @@ export default function AdminPlansPage() {
               </div>
               <div className="admin-field">
                 <label className="admin-label">
-                  {bundleDurationUnit === "custom" ? "Custom Minutes" : "How Many"}
+                  How Many
                 </label>
                 <input
                   className="admin-input"
@@ -825,10 +837,9 @@ export default function AdminPlansPage() {
                   <option value="day">Day(s)</option>
                   <option value="week">Week(s)</option>
                   <option value="month">Month(s)</option>
-                  <option value="custom">Custom minutes</option>
                 </select>
                 <p className="admin-section-subtitle">
-                  Duration: {bundleDurationMinutes ? formatDuration(bundleDurationMinutes) : "No duration"}
+                  Auto-renews every {bundleDurationMinutes ? formatDuration(bundleDurationMinutes) : "billing period"}.
                 </p>
               </div>
 
