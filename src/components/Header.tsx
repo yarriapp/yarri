@@ -10,6 +10,7 @@ const adminRoutes = [
   { href: "/duo", label: "Duo" },
   { href: "/group", label: "Group" },
   { href: "/plans", label: "Plans" },
+  { href: "/revenue", label: "Revenue" },
   { href: "/interests", label: "Interests" },
   { href: "/verification", label: "Verification" },
   { href: "/location-show", label: "Location Show" },
@@ -43,6 +44,11 @@ const pageCopy: Record<string, { eyebrow: string; title: string; subtitle: strin
     eyebrow: "Revenue",
     title: "Plans",
     subtitle: "Mode-based subscription plans and premium bundles.",
+  },
+  "/revenue": {
+    eyebrow: "Revenue",
+    title: "Revenue Dashboard",
+    subtitle: "Payments, recurring subscriptions, product performance, and billing health.",
   },
   "/liked-you": {
     eyebrow: "Revenue",
