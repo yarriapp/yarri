@@ -20,6 +20,7 @@ type FeatureType =
   | "flower";
 
 type DurationUnit = "day" | "week" | "month" | "custom";
+type PlanBadgeKey = "vip" | "elite" | "platinum" | "diamond";
 
 type PremiumProduct = {
   id: string;
@@ -91,6 +92,13 @@ const ACCESS_ONLY_BUNDLE_FEATURES = new Set<BundleFeatureKey>([
   "topPlacement",
   "whoLikedYou",
 ]);
+
+const PLAN_BADGE_OPTIONS: { id: PlanBadgeKey; label: string; hint: string }[] = [
+  { id: "vip", label: "VIP", hint: "Warm gold premium badge" },
+  { id: "elite", label: "Elite", hint: "Clean blue status badge" },
+  { id: "platinum", label: "Platinum", hint: "Silver platinum badge" },
+  { id: "diamond", label: "Diamond", hint: "Purple diamond badge" },
+];
 
 const EMPTY_BUNDLE_LIMITS: Record<BundleFeatureKey, BundleLimit> = {
   likes: { enabled: true, unlimited: true, quantity: "0" },
@@ -195,6 +203,7 @@ export default function AdminPlansPage() {
   const [savingBundle, setSavingBundle] = useState(false);
   const [togglingId, setTogglingId] = useState("");
   const [deletingId, setDeletingId] = useState("");
+  const [updatingBadgeId, setUpdatingBadgeId] = useState("");
 
   const [singleMode, setSingleMode] = useState<Mode>("solo");
   const [singleFeature, setSingleFeature] = useState<FeatureType>("liked_you");
@@ -214,6 +223,7 @@ export default function AdminPlansPage() {
   const [bundleCurrency, setBundleCurrency] = useState("USD");
   const [bundleDurationValue, setBundleDurationValue] = useState("1");
   const [bundleDurationUnit, setBundleDurationUnit] = useState<DurationUnit>("month");
+  const [bundleProfileBadge, setBundleProfileBadge] = useState<PlanBadgeKey>("vip");
   const [bundleLimits, setBundleLimits] = useState<Record<BundleFeatureKey, BundleLimit>>(
     cloneBundleLimits()
   );
@@ -434,6 +444,7 @@ export default function AdminPlansPage() {
           duration_unit: bundleDurationUnit,
           billing_interval: bundleDurationUnit,
           billing_interval_count: parsedDuration,
+          profile_badge: bundleProfileBadge,
           included_features: enabledFeatures.map(
             (feature) => FEATURE_ID_BY_BUNDLE_KEY[feature.id]
           ),
@@ -479,6 +490,28 @@ export default function AdminPlansPage() {
       setError(getErrorMessage(error) || "Could not delete product.");
     } finally {
       setDeletingId("");
+    }
+  };
+
+  const updatePlanBadge = async (product: PremiumProduct, badge: PlanBadgeKey) => {
+    try {
+      setUpdatingBadgeId(product.id);
+      setError("");
+      setMessage("");
+      const metadata = { ...(product.metadata || {}), profile_badge: badge };
+      const { error } = await supabase
+        .from("premium_products")
+        .update({ metadata })
+        .eq("id", product.id);
+      if (error) throw error;
+      setProducts((current) =>
+        current.map((item) => (item.id === product.id ? { ...item, metadata } : item))
+      );
+      setMessage(`${product.name} now uses the ${PLAN_BADGE_OPTIONS.find((item) => item.id === badge)?.label || badge} badge.`);
+    } catch (error) {
+      setError(getErrorMessage(error) || "Could not update the plan badge.");
+    } finally {
+      setUpdatingBadgeId("");
     }
   };
 
@@ -844,6 +877,24 @@ export default function AdminPlansPage() {
               </div>
 
               <div className="admin-field admin-field-full">
+                <label className="admin-label">Subscriber Profile Badge</label>
+                <select
+                  className="admin-input"
+                  value={bundleProfileBadge}
+                  onChange={(event) => setBundleProfileBadge(event.target.value as PlanBadgeKey)}
+                >
+                  {PLAN_BADGE_OPTIONS.map((badge) => (
+                    <option key={badge.id} value={badge.id}>
+                      {badge.label} — {badge.hint}
+                    </option>
+                  ))}
+                </select>
+                <p className="admin-section-subtitle">
+                  Appears next to the verified badge while this subscription is active.
+                </p>
+              </div>
+
+              <div className="admin-field admin-field-full">
                 <label className="admin-label">Quick Duration</label>
                 <div className="admin-tabs-row" style={{ marginBottom: 0 }}>
                   {QUICK_DURATIONS.map((duration) => (
@@ -990,6 +1041,31 @@ export default function AdminPlansPage() {
                             </span>
                           ))}
                         </div>
+
+                        {product.feature_type === "plan" ? (
+                          <div className="admin-field" style={{ marginTop: 14 }}>
+                            <label className="admin-label">Subscriber Profile Badge</label>
+                            <select
+                              className="admin-input"
+                              value={String(metadata.profile_badge || "vip")}
+                              disabled={updatingBadgeId === product.id}
+                              onChange={(event) =>
+                                void updatePlanBadge(product, event.target.value as PlanBadgeKey)
+                              }
+                            >
+                              {PLAN_BADGE_OPTIONS.map((badge) => (
+                                <option key={badge.id} value={badge.id}>
+                                  {badge.label} — {badge.hint}
+                                </option>
+                              ))}
+                            </select>
+                            <p className="admin-section-subtitle">
+                              {updatingBadgeId === product.id
+                                ? "Updating badge..."
+                                : "Active subscribers receive this badge immediately."}
+                            </p>
+                          </div>
+                        ) : null}
 
                         <div
                           style={{
