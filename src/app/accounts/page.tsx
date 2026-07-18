@@ -1,10 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import AdminPagination from "@/components/AdminPagination";
 import Header from "@/components/Header";
+import {
+  ADMIN_ACCOUNT_PAGE_SIZE,
+  sanitizeAdminSearch,
+  UUID_PATTERN,
+} from "@/lib/admin-account-pagination";
 import { isAllowedAdminEmail } from "@/lib/admin";
 import { supabase } from "@/lib/supabase";
+
+type ModeFilter = "all" | "solo" | "duo" | "group";
 
 type ProfileRow = {
   id: string;
@@ -30,6 +38,10 @@ export default function AdminAccountsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [modeFilter, setModeFilter] = useState<ModeFilter>("all");
+  const [accountPage, setAccountPage] = useState(1);
+  const [accountTotal, setAccountTotal] = useState(0);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [reason, setReason] = useState("admin_removed");
   const [details, setDetails] = useState("");
@@ -53,26 +65,57 @@ export default function AdminAccountsPage() {
     void verifyAccess();
   }, [router]);
 
-  useEffect(() => {
-    if (checkingAccess) return;
-    void loadProfiles();
-  }, [checkingAccess]);
-
-  const loadProfiles = async () => {
+  const loadProfiles = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
 
-      const { data, error: profilesError } = await supabase
+      const query = sanitizeAdminSearch(debouncedSearchTerm);
+      const from = (accountPage - 1) * ADMIN_ACCOUNT_PAGE_SIZE;
+      let request = supabase
         .from("profiles")
-        .select("id, full_name, email, city, dating_mode, is_banned, created_at")
-        .order("created_at", { ascending: false });
+        .select("id, full_name, email, city, dating_mode, is_banned, created_at", {
+          count: "exact",
+        });
+
+      if (modeFilter !== "all") {
+        request = request.eq("dating_mode", modeFilter);
+      }
+
+      if (query) {
+        const pattern = `%${query}%`;
+        const clauses = [
+          `full_name.ilike.${pattern}`,
+          `email.ilike.${pattern}`,
+          `city.ilike.${pattern}`,
+          `dating_mode.ilike.${pattern}`,
+        ];
+        if (UUID_PATTERN.test(query)) clauses.push(`id.eq.${query}`);
+        request = request.or(clauses.join(","));
+      }
+
+      const { data, error: profilesError, count } = await request
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: true })
+        .range(from, from + ADMIN_ACCOUNT_PAGE_SIZE - 1);
 
       if (profilesError) throw profilesError;
 
+      const resultTotal = count || 0;
+      const pageCount = Math.max(1, Math.ceil(resultTotal / ADMIN_ACCOUNT_PAGE_SIZE));
+      setAccountTotal(resultTotal);
+      if (accountPage > pageCount) {
+        setAccountPage(pageCount);
+        return;
+      }
+
       const rows = (data || []) as ProfileRow[];
       setProfiles(rows);
-      setSelectedUserId((current) => current || rows[0]?.id || "");
+      setSelectedUserId((current) =>
+        current && rows.some((profile) => profile.id === current)
+          ? current
+          : rows[0]?.id || ""
+      );
     } catch (loadError) {
       setError(
         loadError instanceof Error ? loadError.message : "Could not load users."
@@ -80,32 +123,19 @@ export default function AdminAccountsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [accountPage, debouncedSearchTerm, modeFilter]);
 
-  const filteredProfiles = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    if (!query) return profiles;
+  useEffect(() => {
+    if (checkingAccess) return;
+    void loadProfiles();
+  }, [checkingAccess, loadProfiles]);
 
-    return profiles.filter((profile) => {
-      const haystack = [
-        profile.full_name,
-        profile.email,
-        profile.city,
-        profile.dating_mode,
-        profile.id,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearchTerm(searchTerm), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
 
-      return haystack.includes(query);
-    });
-  }, [profiles, searchTerm]);
-
-  const selectedProfile =
-    filteredProfiles.find((profile) => profile.id === selectedUserId) ||
-    profiles.find((profile) => profile.id === selectedUserId) ||
-    null;
+  const selectedProfile = profiles.find((profile) => profile.id === selectedUserId) || null;
 
   const handleDelete = async () => {
     if (!selectedProfile?.id) return;
@@ -158,7 +188,7 @@ export default function AdminAccountsPage() {
               <div>
                 <h2 className="admin-section-title">Accounts</h2>
                 <p className="admin-section-subtitle">
-                  Search any user account and delete it safely from admin.
+                  Browse Solo, Duo, and Group members 50 accounts at a time.
                 </p>
               </div>
             </div>
@@ -169,8 +199,33 @@ export default function AdminAccountsPage() {
                 className="admin-input"
                 placeholder="Search by name, email, city, mode, or user id..."
                 value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
+                onChange={(event) => {
+                  setSearchTerm(event.target.value);
+                  setAccountPage(1);
+                }}
               />
+            </div>
+
+            <div className="admin-tabs-row" aria-label="Account type filter">
+              {(["all", "solo", "duo", "group"] as ModeFilter[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={`admin-tab-button ${modeFilter === mode ? "admin-tab-button-active" : ""}`}
+                  onClick={() => {
+                    setModeFilter(mode);
+                    setAccountPage(1);
+                  }}
+                >
+                  {mode.slice(0, 1).toUpperCase() + mode.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            <div className="admin-list-count-row">
+              <span className="admin-list-count-primary">
+                {modeFilter === "all" ? "All accounts" : `${modeFilter.slice(0, 1).toUpperCase()}${modeFilter.slice(1)} accounts`} ({accountTotal})
+              </span>
             </div>
 
             {loading ? (
@@ -179,7 +234,7 @@ export default function AdminAccountsPage() {
               </div>
             ) : (
               <div className="admin-user-list">
-                {filteredProfiles.map((profile) => (
+                {profiles.map((profile) => (
                   <button
                     key={profile.id}
                     type="button"
@@ -202,8 +257,22 @@ export default function AdminAccountsPage() {
                     </div>
                   </button>
                 ))}
+                {!profiles.length ? (
+                  <div className="admin-empty-card">
+                    <h3 className="admin-section-title">No matching accounts</h3>
+                    <p className="admin-section-subtitle">Try another account type or search.</p>
+                  </div>
+                ) : null}
               </div>
             )}
+
+            <AdminPagination
+              page={accountPage}
+              pageSize={ADMIN_ACCOUNT_PAGE_SIZE}
+              total={accountTotal}
+              loading={loading}
+              onPageChange={setAccountPage}
+            />
           </aside>
 
           <section className="admin-main-card admin-detail-panel">
