@@ -11,6 +11,7 @@ import AdminPhotoDeleteButton from "@/components/AdminPhotoDeleteButton";
 import AdminPhotoOrderControls from "@/components/AdminPhotoOrderControls";
 import AdminPagination from "@/components/AdminPagination";
 import { getSchoolPromptAnswer, updateSchoolPrompt, type ProfilePrompt } from "@/lib/profile-prompts";
+import { syncSharedVerificationForProfile } from "@/lib/shared-verification";
 import {
   ADMIN_ACCOUNT_PAGE_SIZE,
   ADMIN_SEARCH_ID_BATCH_SIZE,
@@ -925,6 +926,10 @@ export default function AdminGroupPage() {
       if (error) {
         setActionsError(error.message);
         return;
+      }
+
+      if (key === "is_verified") {
+        await syncSharedVerificationForProfile(profileId);
       }
 
       updateGroupProfileInState(profileId, { [key]: value });

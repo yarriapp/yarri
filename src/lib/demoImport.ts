@@ -27,6 +27,8 @@ export const DEMO_DATA_HEADERS = [
   "education",
   "school",
   "city",
+  "latitude",
+  "longitude",
   "hometown",
   "ethnicity",
   "preferred_ethnicities",
@@ -113,6 +115,8 @@ export type DemoMemberInput = {
   education: string;
   school: string;
   city: string;
+  latitude: number | null;
+  longitude: number | null;
   hometown: string;
   ethnicity: string;
   preferredEthnicities: string[];
@@ -351,6 +355,8 @@ const sharedMemberDefaults: Partial<Record<DemoCsvHeader, string>> = {
   education: "Bachelor's",
   school: "Demo University",
   city: "Los Angeles",
+  latitude: "34.0522342",
+  longitude: "-118.2436849",
   hometown: "San Diego",
   ethnicity: "Prefer not to say",
   preferred_ethnicities: "Prefer not to say",
@@ -536,6 +542,12 @@ export function validateAndGroupDemoRows(rows: DemoCsvRow[]): DemoImportValidati
       const intent = clean(row.intent);
       const lookingFor = clean(row.looking_for);
       const city = clean(row.city) || shared.city;
+      const latitudeText = clean(row.latitude);
+      const longitudeText = clean(row.longitude);
+      const hasLatitude = Boolean(latitudeText);
+      const hasLongitude = Boolean(longitudeText);
+      const latitude = hasLatitude ? Number(latitudeText) : null;
+      const longitude = hasLongitude ? Number(longitudeText) : null;
       const bio = clean(row.bio) || shared.bio;
       const interests = splitList(row.interests);
       const suppliedPhotos = splitList(row.photo_urls);
@@ -558,6 +570,19 @@ export function validateAndGroupDemoRows(rows: DemoCsvRow[]): DemoImportValidati
       if (!intent) errors.push(`${rowPrefix}: intent is required.`);
       if (!lookingFor) errors.push(`${rowPrefix}: looking_for is required.`);
       if (!city) errors.push(`${rowPrefix}: city or shared_city is required.`);
+      if (hasLatitude !== hasLongitude) {
+        errors.push(`${rowPrefix}: latitude and longitude must either both be filled or both be blank.`);
+      } else if (
+        hasLatitude &&
+        (!Number.isFinite(latitude) ||
+          !Number.isFinite(longitude) ||
+          Number(latitude) < -90 ||
+          Number(latitude) > 90 ||
+          Number(longitude) < -180 ||
+          Number(longitude) > 180)
+      ) {
+        errors.push(`${rowPrefix}: enter valid latitude (-90 to 90) and longitude (-180 to 180).`);
+      }
       if (!bio) errors.push(`${rowPrefix}: bio or shared_bio is required.`);
       if (interests.length < 5 || interests.length > 8) {
         errors.push(`${rowPrefix}: add 5 to 8 semicolon-separated interests.`);
@@ -601,6 +626,8 @@ export function validateAndGroupDemoRows(rows: DemoCsvRow[]): DemoImportValidati
         education: clean(row.education),
         school: clean(row.school),
         city,
+        latitude,
+        longitude,
         hometown: clean(row.hometown),
         ethnicity: clean(row.ethnicity),
         preferredEthnicities: splitList(row.preferred_ethnicities),

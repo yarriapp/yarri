@@ -248,6 +248,8 @@ function buildImportRow({
     education: serializeCell(profile.education).trim(),
     school: getPromptAnswer(profile.prompts, "School"),
     city: serializeCell(profile.city).trim() || fallback.city,
+    latitude: serializeCell(profile.latitude).trim(),
+    longitude: serializeCell(profile.longitude).trim(),
     hometown: getPromptAnswer(profile.prompts, "Hometown"),
     ethnicity: getPromptAnswer(profile.prompts, "Ethnicity"),
     preferred_ethnicities: toSemicolonList(getPromptAnswer(profile.prompts, "Preferred ethnicities")),

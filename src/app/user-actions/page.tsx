@@ -333,7 +333,7 @@ export default function AdminUserActionsPage() {
 
       if (loadErrors.length) {
         setErrorMessage(
-          `${loadErrors.join(" ")} Run C:\\dating\\sql\\dating_admin_user_actions.sql in Supabase SQL editor if this mentions permission, RLS, or missing tables/functions.`
+          `${loadErrors.join(" ")} The database permissions for action history need to be updated before these records can be shown.`
         );
       }
 

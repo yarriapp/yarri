@@ -12,6 +12,7 @@ import {
 } from "@/lib/demoImport";
 
 export const runtime = "nodejs";
+export const maxDuration = 120;
 
 type ImportResult = {
   key: string;
@@ -30,6 +31,11 @@ type ExistingAuthUser = {
   user_metadata?: Record<string, unknown>;
 };
 
+type CityCoordinates = {
+  latitude: number;
+  longitude: number;
+};
+
 function requiredEnv(name: string) {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`Missing server environment variable: ${name}`);
@@ -42,6 +48,113 @@ function cleanError(error: unknown) {
     return String((error as { message?: unknown }).message || "Import failed.");
   }
   return "Import failed.";
+}
+
+function normalizedCityKey(value: string) {
+  return value.trim().toLocaleLowerCase("en-US").replace(/\s+/g, " ");
+}
+
+function hasValidCoordinates(member: DemoMemberInput) {
+  return (
+    Number.isFinite(member.latitude) &&
+    Number.isFinite(member.longitude) &&
+    Number(member.latitude) >= -90 &&
+    Number(member.latitude) <= 90 &&
+    Number(member.longitude) >= -180 &&
+    Number(member.longitude) <= 180
+  );
+}
+
+async function invokeGoogleCityFunction(
+  supabaseUrl: string,
+  anonKey: string,
+  token: string,
+  body: Record<string, unknown>
+) {
+  const response = await fetch(`${supabaseUrl}/functions/v1/google-place-search`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: anonKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!response.ok) {
+    throw new Error(String(payload.error || payload.details || "Google could not resolve this city."));
+  }
+  return payload;
+}
+
+async function resolveCityCoordinates(
+  supabaseUrl: string,
+  anonKey: string,
+  token: string,
+  city: string
+): Promise<CityCoordinates> {
+  const sessionToken = crypto.randomUUID();
+  const autocomplete = await invokeGoogleCityFunction(supabaseUrl, anonKey, token, {
+    action: "autocomplete",
+    input: city,
+    sessionToken,
+  });
+  const suggestions = Array.isArray(autocomplete.suggestions)
+    ? (autocomplete.suggestions as Array<{ placeId?: unknown }>)
+    : [];
+  const placeId = String(suggestions[0]?.placeId || "").trim();
+  if (!placeId) throw new Error(`Google could not find the city "${city}".`);
+
+  const details = await invokeGoogleCityFunction(supabaseUrl, anonKey, token, {
+    action: "details",
+    placeId,
+    sessionToken,
+  });
+  const place = (details.place || {}) as { latitude?: unknown; longitude?: unknown };
+  const latitude = Number(place.latitude);
+  const longitude = Number(place.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    throw new Error(`Google did not return coordinates for "${city}".`);
+  }
+  return { latitude, longitude };
+}
+
+async function addMissingCoordinates(
+  entities: DemoEntityInput[],
+  supabaseUrl: string,
+  anonKey: string,
+  token: string
+) {
+  const cache = new Map<string, Promise<CityCoordinates>>();
+  for (const entity of entities) {
+    for (const member of entity.members) {
+      const hasLatitude = member.latitude !== null && member.latitude !== undefined;
+      const hasLongitude = member.longitude !== null && member.longitude !== undefined;
+      if (hasLatitude !== hasLongitude) {
+        throw new Error(`Row ${member.sourceRow}: latitude and longitude must both be supplied.`);
+      }
+      if (hasLatitude && hasLongitude) {
+        if (!hasValidCoordinates(member)) {
+          throw new Error(`Row ${member.sourceRow}: latitude or longitude is outside the valid range.`);
+        }
+        continue;
+      }
+
+      const city = String(member.city || entity.shared.city || "").trim();
+      if (!city) throw new Error(`Row ${member.sourceRow}: city is required to resolve coordinates.`);
+      const key = normalizedCityKey(city);
+      let pending = cache.get(key);
+      if (!pending) {
+        pending = resolveCityCoordinates(supabaseUrl, anonKey, token, city).catch((error) => {
+          throw new Error(`Row ${member.sourceRow}: ${cleanError(error)} Add coordinates to the CSV or correct the city.`);
+        });
+        cache.set(key, pending);
+      }
+      const coordinates = await pending;
+      member.latitude = coordinates.latitude;
+      member.longitude = coordinates.longitude;
+    }
+  }
 }
 
 function isMissingAuthUserError(error: unknown) {
@@ -221,6 +334,8 @@ function profilePayload(
     looking_for: member.lookingFor || shared.lookingFor || null,
     photos: member.photos,
     city: member.city || shared.city,
+    latitude: member.latitude,
+    longitude: member.longitude,
     address_line: member.addressLine || null,
     state_region: member.stateRegion || null,
     postal_code: member.postalCode || null,
@@ -253,6 +368,7 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as { entities?: unknown };
     const entities = validatePayload(body.entities);
+    await addMissingCoordinates(entities, supabaseUrl, anonKey, token);
     const serviceRoleKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
     const admin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },

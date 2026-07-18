@@ -270,6 +270,7 @@ export default function DemoImportPage() {
 
           <div className="demo-import-guidance">
             <span><strong>Photos:</strong> Optional. Invalid links are ignored and can be added later in admin.</span>
+            <span><strong>Coordinates:</strong> Keep both downloaded values, or leave both blank and the city will be resolved during import.</span>
             <span><strong>Verification:</strong> Use <code>true</code> to test chat immediately.</span>
             <span><strong>Shared sets:</strong> Reuse one <code>entity_key</code> for every Duo or Group member.</span>
             <span><strong>Chip choices:</strong> Columns beginning with <code>chip_</code> list exact app options and are not imported.</span>

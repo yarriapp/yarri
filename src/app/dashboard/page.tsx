@@ -11,6 +11,7 @@ import AdminPhotoDeleteButton from "@/components/AdminPhotoDeleteButton";
 import AdminPhotoOrderControls from "@/components/AdminPhotoOrderControls";
 import AdminPagination from "@/components/AdminPagination";
 import { getSchoolPromptAnswer, updateSchoolPrompt, type ProfilePrompt } from "@/lib/profile-prompts";
+import { syncSharedVerificationForProfile } from "@/lib/shared-verification";
 import {
   ADMIN_ACCOUNT_PAGE_SIZE,
   UUID_PATTERN,
@@ -801,6 +802,10 @@ export default function DashboardPage() {
       if (error) {
         setProfilesError(error.message);
         return;
+      }
+
+      if (field === "is_verified") {
+        await syncSharedVerificationForProfile(profileId);
       }
 
       setProfiles((current) =>
