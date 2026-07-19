@@ -13,6 +13,7 @@ const adminRoutes = [
   { href: "/revenue", label: "Revenue" },
   { href: "/interests", label: "Interests" },
   { href: "/verification", label: "Verification" },
+  { href: "/support-tickets", label: "Support Tickets" },
   { href: "/location-show", label: "Location Show" },
   { href: "/pending-likes", label: "Pending Likes" },
   { href: "/user-actions", label: "User Actions" },
@@ -84,6 +85,11 @@ const pageCopy: Record<string, { eyebrow: string; title: string; subtitle: strin
     eyebrow: "Trust",
     title: "Verification",
     subtitle: "Review selfie checks and approve blue profile ticks.",
+  },
+  "/support-tickets": {
+    eyebrow: "Member care",
+    title: "Support Tickets",
+    subtitle: "Read user requests, reply privately, and manage resolution status.",
   },
   "/user-actions": {
     eyebrow: "Safety",

@@ -7459,3 +7459,218 @@ body {
 @media (max-width: 470px) {
   .revenue-metric-grid { grid-template-columns: 1fr; }
 }
+/* Support ticket workspace */
+.support-ticket-filters {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.8fr) minmax(160px, 0.8fr) minmax(240px, 1.6fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin-top: 18px;
+}
+
+.support-ticket-workspace {
+  display: grid;
+  grid-template-columns: minmax(310px, 0.75fr) minmax(0, 1.55fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.support-ticket-list-panel,
+.support-ticket-detail-panel {
+  min-width: 0;
+}
+
+.support-ticket-list {
+  display: grid;
+  gap: 9px;
+}
+
+.support-ticket-list-item {
+  width: 100%;
+  border: 1px solid #e8e1e5;
+  border-radius: 16px;
+  background: #fff;
+  color: #251923;
+  padding: 14px;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  gap: 6px;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.support-ticket-list-item:hover {
+  border-color: #f1a894;
+  transform: translateY(-1px);
+}
+
+.support-ticket-list-item-active {
+  border-color: #ff7f6a;
+  box-shadow: 0 0 0 3px rgba(255, 127, 106, 0.12);
+  background: #fffaf8;
+}
+
+.support-ticket-list-item > strong {
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.support-ticket-list-item > span,
+.support-ticket-list-item > small {
+  color: #75666e;
+  font-size: 12px;
+}
+
+.support-ticket-list-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  color: #9a6572 !important;
+  font-size: 11px !important;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.support-ticket-status {
+  border-radius: 999px;
+  padding: 4px 8px;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.support-ticket-status-waiting_on_support { background: #fff0e8; color: #b54708; }
+.support-ticket-status-waiting_on_user { background: #e8f8f1; color: #13795b; }
+.support-ticket-status-open { background: #fff0f3; color: #c4325b; }
+.support-ticket-status-resolved { background: #eaf2ff; color: #175cd3; }
+.support-ticket-status-closed { background: #f2f4f7; color: #667085; }
+
+.support-ticket-pagination {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.support-ticket-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #eee5e8;
+}
+
+.support-ticket-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  gap: 10px;
+  min-width: 300px;
+}
+
+.support-ticket-controls label,
+.support-ticket-reply-box > label {
+  display: grid;
+  gap: 6px;
+  color: #51434a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.support-ticket-thread {
+  display: grid;
+  gap: 12px;
+  max-height: 560px;
+  overflow-y: auto;
+  padding: 20px 4px 20px 0;
+}
+
+.support-ticket-message {
+  width: min(82%, 680px);
+  border-radius: 16px;
+  padding: 14px 15px;
+}
+
+.support-ticket-message-user {
+  justify-self: start;
+  background: #f7f4f5;
+  border: 1px solid #e9e1e4;
+  border-bottom-left-radius: 5px;
+}
+
+.support-ticket-message-admin {
+  justify-self: end;
+  background: #ff7f6a;
+  color: #fff;
+  border-bottom-right-radius: 5px;
+}
+
+.support-ticket-message-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  font-size: 12px;
+  margin-bottom: 7px;
+}
+
+.support-ticket-message-heading span {
+  opacity: 0.72;
+  font-size: 11px;
+}
+
+.support-ticket-message p {
+  margin: 0;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.support-ticket-reply-box {
+  display: grid;
+  gap: 9px;
+  border-top: 1px solid #eee5e8;
+  padding-top: 18px;
+}
+
+.support-ticket-reply-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  color: #75666e;
+  font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+  .support-ticket-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .support-ticket-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .support-ticket-filters,
+  .support-ticket-list,
+  .support-ticket-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .support-ticket-detail-header,
+  .support-ticket-reply-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .support-ticket-controls {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .support-ticket-message {
+    width: 94%;
+  }
+}
